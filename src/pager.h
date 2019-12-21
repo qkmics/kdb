@@ -36,7 +36,7 @@ public:
 
 	PageNumber GetRealDBSize() const;
 
-	void ReadPage(std::shared_ptr<MemPage>& mem_page, PageNumber page_number);
+	void ReadPage(std::shared_ptr<MemPage>& mem_page, PageNumber page_number) ;
 
 	void WritePage(const MemPage& mem_page);
 

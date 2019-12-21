@@ -69,22 +69,57 @@ void BTree::AllocateNode(PageNumber& page_number, PageType page_type) {
 }
 
 
-/*
-*	Finds the data associated for a given key in a table B-Tree
-*/
+/* Find an entry in a table B-Tree
+ *
+ * Finds the data associated for a given key in a table B-Tree
+ *
+ * Parameters
+ * - bt: B-Tree file
+ * - nroot: Page number of the root node of the B-Tree we want search in
+ * - key: Entry key
+ * - data: Out-parameter where a copy of the data must be stored
+ * - size: Out-parameter where the number of bytes of data must be stored
+ *
+ * Return
+ * - CHIDB_OK: Operation successful
+ * - CHIDB_ENOTFOUND: No entry with the given key way found
+ * - CHIDB_ENOMEM: Could not allocate memory
+ * - CHIDB_EIO: An I/O error has occurred when accessing the file
+ */
+void BTree::Find(PageNumber root_page_number, KdbKey key) {	
+	std::shared_ptr<MemPage> mem_page;
 
-void BTree::Find(KdbKey key) {
+	pager_.ReadPage(mem_page, root_page_number);
+	std::shared_ptr<BTreeNode> btree_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
 
+	PageNumber child_page_number;
+	std::shared_ptr<BTreeCell> cell;
+	btree_node->Find(child_page_number,cell);
+	if (child_page_number == root_page_number) {
+		// Found the target cell
+
+	}
+	else
+		Find(child_page_number, key);
 }
 
-void BTree::InsertInIndex(KdbKey keyIdx, KdbKey keyPk) {
+void BTree::InsertInIndex(PageNumber root_page_number, KdbKey keyIdx, KdbKey keyPk) {
 	
-
+	std::shared_ptr<MemPage> mem_page;
+	pager_.ReadPage(mem_page, root_page_number);
+	std::shared_ptr<BTreeNode> btree_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
+	
+	IndexLeafCell cell(keyIdx, keyPk);
+	btree_node->InsertCell(cell, pager_);
 }
 
-void BTree::InsertInTable(KdbKey key, uint8_t* data, uint16_t size) {
-
-
+void BTree::InsertInTable(PageNumber root_page_number, KdbKey key,const std::vector<uint8_t>& data) {
+	std::shared_ptr<MemPage> mem_page;
+	pager_.ReadPage(mem_page, root_page_number);
+	std::shared_ptr<BTreeNode> btree_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
+	
+	TableLeafCell cell(key, data);
+	btree_node->InsertCell(cell, pager_);
 }
 
 /* Loads a B-Tree node from disk
@@ -149,21 +184,122 @@ BTreeNode::BTreeNode(std::shared_ptr<MemPage> page) :page_(page) {
  *
  * Return
  * - CHIDB_OK: Operation successful
- */m  
+ */
 BTreeNode::~BTreeNode() {
 
 }
 
 
+ bool BTreeNode::Find(std::shared_ptr<BTreeCell>, BTreeCell& cell) {
 
-void BTreeNode::InsertNonFull(CellNumber cell_number, BTreeCell& cell) {
-	
-	cells_.push_back(cell);
-	cells_offset_.push_back();
+ }
+
+ void  BTreeNode::InsertCell(const BTreeCell& cell, Pager& pager) {
+
+	std::shared_ptr<BTreeCell> cell;
+
+	if (cells_offset_ - free_offset_ == 0) {
+		//Split root
+				
+	}
+ 
+	InsertNonFull(cell, pager);
+ }
 
 
-}
 
+ /* Insert a BTreeCell into a non-full B-Tree node
+  *
+  * chidb_Btree_insertNonFull inserts a BTreeCell into a node that is
+  * assumed not to be full (i.e., does not require splitting). If the
+  * node is a leaf node, the cell is directly added in the appropriate
+  * position according to its key. If the node is an internal node, the
+  * function will determine what child node it must insert it in, and
+  * calls itself recursively on that child node. However, before doing so
+  * it will check if the child node is full or not. If it is, then it will
+  * have to be split first.
+  *
+  * Parameters
+  * - bt: B-Tree file
+  * - nroot: Page number of the root node of the B-Tree we want to insert
+  *          this cell in.
+  * - btc: BTreeCell to insert into B-Tree
+  *
+  * Return
+  * - CHIDB_OK: Operation successful
+  * - CHIDB_EDUPLICATE: An entry with that key already exists
+  * - CHIDB_ENOMEM: Could not allocate memory
+  * - CHIDB_EIO: An I/O error has occurred when accessing the file
+  */
+ void BTreeNode::InsertNonFull(const BTreeCell& cell, Pager& pager)
+ {
+	 // It is an internal node, determine what child node it must insert it in
+	 if (page_type_ == PageType::kIndexInternal || page_type_ == PageType::kTableInternal) {
+		 
+		 PageNumber child_page = -1;
+		 for (auto iterator = cell_offset_array_.begin();iterator != cell_offset_array_.end();iterator++) {
+			 if (cell.getKey() < cells_[*iterator]->getKey()) {
+				 child_page = dynamic_cast<InternalCell&>(*cells_[*iterator]).getChildPage();
+			 }
+		 }
+
+		 // child_page is the right page 
+		 if (child_page == -1) {
+			 child_page = right_page_;
+		 }
+
+		 std::shared_ptr<MemPage> mem_page;
+		 pager.ReadPage(mem_page, child_page);
+		 std::shared_ptr<BTreeNode> child_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
+
+		 if (!child_node->CanInsertCell(cell))
+			 Split(*child_node, pager);
+
+		 child_node->InsertNonFull(cell, pager);
+	 }
+	 else {
+
+		 cells_.push_back(std::make_shared<BTreeCell>(cell));
+		 bool inserted = false;
+		 for (auto iterator = cell_offset_array_.begin();iterator != cell_offset_array_.end();iterator++) {
+			 if (cells_[*iterator]->getKey() > cell.getKey()) {
+				 cell_offset_array_.insert(iterator, (uint16_t)cells_.size() - 1);
+				 inserted = true;
+			 }
+		 }
+		 if (!inserted)
+			 cell_offset_array_.push_back((uint16_t)cells_.size() - 1);
+	 }
+ }
+
+ /*
+ * Return 
+ *  
+ */
+ bool BTreeNode::CanInsertCell(const BTreeCell& cell) {
+	// 2 is space needs to store cell offset of this cell
+	uint16_t space_need = cell.getSize() + 2;
+	uint16_t space_remain = cells_offset_ - free_offset_;
+	return space_remain >= space_need;
+ } 
+
+
+ void BTreeNode::Split(BTreeNode& child_node, Pager& pager) {
+	 
+	 int medium_index = cell_offset_array_.size() / 2;
+	 
+
+	 
+	 
+	 std::vector<std::shared_ptr<BTreeCell>> cell_array_left;
+
+
+	 for (int i = 0;i < medium_index;i++) {
+
+	 }
+
+
+ }
 
 /* Write an in-memory B-Tree node to disk
  *
