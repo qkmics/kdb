@@ -12,6 +12,8 @@ typedef uint32_t KdbKey;
 
 class MemPage {
 public:
+	MemPage(PageNumber page_number) : page_number_(page_number) {}
+
 	MemPage(PageNumber page_number, const std::string& data);
 	~MemPage();
 

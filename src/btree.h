@@ -38,41 +38,47 @@ private:
 
 class BTreeNode {
 public:
-	BTreeNode(std::shared_ptr<MemPage> page);
+
+	//BTreeNode(PageNumber page_number): page_number_(page_number), page_type_()
+
+	BTreeNode(PageNumber page_number, PageType page_type, const std::vector<uint16_t>& cell_offset_array, const std::vector<std::shared_ptr<BTreeCell>>& cells);
+	
 	~BTreeNode();
 
-	
+	void Read(const MemPage& page);
 
-	//void InsertCell(CellNumber cell_number, BTreeCell& cell);
-
-	//void GetCell(CellNumber cell_number, BTreeCell& cell);
-
-	void Write();
+	void Write(MemPage& page);
 
 	bool Find(PageNumber& child_page, std::shared_ptr<BTreeCell>);
 
-	void InsertCell(const BTreeCell& cell,Pager& pager);
+	void InsertCellToSubtree(const BTreeCell& cell,Pager& pager);
 
 private:
+
+	void InsertToNode(const BTreeCell& cell);
+
 	bool CanInsertCell(const BTreeCell& cell);
 
-	void InsertNonFull(const BTreeCell& cell, Pager& pager);
+	void InsertToNonFullSubtree(const BTreeCell& cell, Pager& pager);
 
-	void Split(BTreeNode& child_node, Pager& pager);
+	void Split(BTreeNode&& child_node, Pager& pager);
 
+	PageNumber page_number_;
 
-	// int chidb_Btree_split(BTree* bt, npage_t npage_parent, npage_t npage_child, ncell_t parent_ncell, npage_t* npage_child2)
-
-	std::shared_ptr<MemPage> page_;             /* In-memory page returned by the Pager */
 	PageType page_type_;              /* Type of page  */
 
-	uint16_t free_offset_;      /* Byte offset of free space in page */
-	CellNumber number_of_cells_;           /* Number of cells */
-	uint16_t cells_offset_;     /* Byte offset of start of cells in page */
-	PageNumber right_page_;        /* Right page (internal nodes only) */
-	
 	std::vector<uint16_t> cell_offset_array_; /* Pointer to start of cell offset array in the in-memory page */
+
 	std::vector<std::shared_ptr<BTreeCell>> cells_;
+
+
+	uint16_t free_offset_;      /* Byte offset of free space in page */
+
+	CellNumber number_of_cells_;           /* Number of cells */
+
+	uint16_t cells_offset_;     /* Byte offset of start of cells in page */
+
+	PageNumber right_page_;        /* Right page (internal nodes only) */
 };
 
 class BTreeCell {
