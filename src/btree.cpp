@@ -9,11 +9,10 @@ BTree::BTree(const std::string& file_name) :pager_(file_name, kDefaultPageSize) 
 	}
 	else {
 		// check header 
-
-		std::shared_ptr<MemPage> mem_page;
-		pager_.ReadPage(mem_page, 0);
+		MemPage mem_page(0);
+		pager_.ReadPage(mem_page);
 		//stvector<>mem_page->getRowData();
-		std::vector<uint8_t> raw_data = mem_page->getRawData();
+		std::vector<uint8_t> raw_data = mem_page.getRawData();
 		
 
 	}
@@ -31,14 +30,16 @@ void BTree::AllocateNode(PageNumber& page_number, PageType page_type) {
 
 
 void BTree::Find(PageNumber root_page_number, KdbKey key) {	
-	std::shared_ptr<MemPage> mem_page;
+	
+	MemPage mem_page(root_page_number);
+	pager_.ReadPage(mem_page);
 
-	pager_.ReadPage(mem_page, root_page_number);
-	std::shared_ptr<BTreeNode> btree_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
+	BTreeNode root(root_page_number);
+	root.Read(pager_);
 
 	PageNumber child_page_number;
 	std::shared_ptr<BTreeCell> cell;
-	btree_node->Find(child_page_number,cell);
+	root.Find(child_page_number,cell);
 	if (child_page_number == root_page_number) {
 		// Found the target cell
 
@@ -49,21 +50,20 @@ void BTree::Find(PageNumber root_page_number, KdbKey key) {
 
 void BTree::InsertInIndex(PageNumber root_page_number, KdbKey keyIdx, KdbKey keyPk) {
 	
-	std::shared_ptr<MemPage> mem_page;
-	pager_.ReadPage(mem_page, root_page_number);
-	std::shared_ptr<BTreeNode> btree_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
-	
+	BTreeNode root(root_page_number);
+	root.Read(pager_);
+
 	IndexLeafCell cell(keyIdx, keyPk);
-	btree_node->InsertCellToSubtree(cell, pager_);
+	root.InsertCellToSubtree(cell, pager_);
+
 }
 
 void BTree::InsertInTable(PageNumber root_page_number, KdbKey key,const std::vector<uint8_t>& data) {
-	std::shared_ptr<MemPage> mem_page;
-	pager_.ReadPage(mem_page, root_page_number);
-	std::shared_ptr<BTreeNode> btree_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
-	
+	BTreeNode root(root_page_number);
+	root.Read(pager_);
+
 	TableLeafCell cell(key, data);
-	btree_node->InsertCellToSubtree(cell, pager_);
+	root.InsertCellToSubtree(cell, pager_);
 }
 
 /*
@@ -82,22 +82,14 @@ BTreeNode::BTreeNode(PageNumber page_number,
 		cells_offset_ -= cell->getSize();
 	}
 
-	free_offset_ += cells.size() * 2;
+	free_offset_ += cells.size() * kCellOffsetSize;
 
-	PageNumber right_page_;        /* Right page (internal nodes only) */
+	right_page_ = kDefaultRightPage;
 
 }
 
 BTreeNode::~BTreeNode(){
-	PageType page_type_;              /* Type of page  */
 
-	uint16_t free_offset_;      /* Byte offset of free space in page */
-	CellNumber number_of_cells_;           /* Number of cells */
-	uint16_t cells_offset_;     /* Byte offset of start of cells in page */
-	PageNumber right_page_;        /* Right page (internal nodes only) */
-
-	std::vector<uint8_t> cell_offset_array_; /* Pointer to start of cell offset array in the in-memory page */
-	std::vector<BTreeCell> cells_;
 }
 
 
@@ -136,19 +128,25 @@ BTreeNode::~BTreeNode(){
 			 child_page = right_page_;
 		 }
 
+		 /*
 		 std::shared_ptr<MemPage> mem_page;
 		 pager.ReadPage(mem_page, child_page);
 		 std::shared_ptr<BTreeNode> child_node = std::make_shared<BTreeNode>(BTreeNode(mem_page));
+		 */
 
-		 if (!child_node->CanInsertCell(cell))
-			 Split(*child_node, pager);
+		 BTreeNode child_node(child_page);
+		 child_node.Read(pager);
 
-		 child_node->InsertToNonFullSubtree(cell, pager);
+		 if (!child_node.CanInsertCell(cell))
+			 Split(child_node, pager);
+
+
+		 InsertToNonFullSubtree(cell, pager);
 	 }
 	 else {
 		 // It is a leaf, this is where insertion actually happens 
 		 InsertToNode(cell);
-
+		 Write(pager);
 	 }
  }
 
@@ -171,7 +169,6 @@ BTreeNode::~BTreeNode(){
 	 if (!inserted)
 		 cell_offset_array_.push_back((uint16_t)cells_.size() - 1);
 	 free_offset_ += 2;
-
  }
 
  /*
@@ -189,59 +186,76 @@ BTreeNode::~BTreeNode(){
  *	Split the child_node into two nodes
  *	
  */
- void BTreeNode::Split(BTreeNode&& child_node, Pager& pager) {
+ void BTreeNode::Split(BTreeNode& child_node, Pager& pager) {
 	 
-	 // Allocate a new page, prepare for a new btree node 
-	 PageNumber new_page_number;
-	 pager.AllocatePage(new_page_number);
-
-	 int medium_index = cell_offset_array_.size() / 2;
+	 std::vector<std::shared_ptr<BTreeCell>> cell_array_left, cell_array_right, cell_array = child_node.cells_;
+	 std::vector<uint16_t> cell_offset_array_left, cell_offset_array_right, cell_offset_array = child_node.cell_offset_array_;
+	 int medium_index = cell_offset_array.size() / 2;
 	 
-	 std::vector<std::shared_ptr<BTreeCell>> cell_array_left, cell_array_right;
-	 std::vector<uint16_t> cell_offset_array_left, cell_offset_array_right;
+	 BTreeCell& medium_cell = *cell_array[cell_offset_array[medium_index]];
 
 	 for (uint16_t i = 0;i < medium_index;i++) {
 		cell_offset_array_left.push_back(i);
-		cell_array_left.push_back(cells_[cell_offset_array_[i]]);
+		cell_array_left.push_back(cell_array[cell_offset_array[i]]);
 	 }
 
-	 if (page_type_ == PageType::kIndexLeaf) {
+	 if (child_node.page_type_ == PageType::kIndexLeaf) {
 		 cell_offset_array_left.push_back(medium_index);
-		 cell_array_left.push_back(cells_[cell_offset_array_[medium_index]]);
+		 cell_array_left.push_back(cell_array[cell_offset_array[medium_index]]);
 	 }
 
 	 for (uint16_t i = medium_index + 1;i < cell_offset_array_.size();i++) {
 		 cell_offset_array_right.push_back(i - medium_index);
-		 cell_array_right.push_back(cells_[cell_offset_array_[i]]);
+		 cell_array_right.push_back(cell_array[cell_offset_array[i]]);
 	 }
 
+	 // right_node is the previous child_node
+	 BTreeNode right_node(child_node.page_number_, child_node.page_type_, cell_offset_array_right, cell_array_right);
+	 right_node.Write(pager);
 
-	 BTreeNode left_node(page_number_,page_type_, cell_offset_array_left, cell_array_left);
-	 BTreeNode right_node(new_page_number, page_type_, cell_offset_array_right, cell_array_right);
-
+	 // Allocate a new page, prepare for a new btree node, build the allocated new node
+	 PageNumber new_page_number;
+	 pager.AllocatePage(new_page_number);
+	 BTreeNode left_node(new_page_number, child_node.page_type_, cell_offset_array_left, cell_array_left);
+	 if (child_node.page_type_ == PageType::kIndexInternal || child_node.page_type_ == PageType::kTableInternal)
+		 left_node.right_page_ = dynamic_cast<InternalCell&>(medium_cell).getChildPage();
+	 /*
+	 if (child_node.page_type_ ==  PageType::kIndexInternal) {
+		 left_node.right_page_ = dynamic_cast<IndexInternalCell&>(medium_cell).getChildPage();
+	 }
+	 else if (child_node.page_type_ == PageType::kTableInternal) {
+		 left_node.right_page_ = dynamic_cast<TableInternalCell&>(medium_cell).getChildPage();
+	 }
+	 */
+	 left_node.Write(pager);
 	
-	 std::shared_ptr<BTreeCell> medium_cell = cells_[cell_offset_array_[medium_index]];
-
+	 // Make a cell based on the contents in medium_cell and insert it in current node(parent node)
 	 std::shared_ptr<InternalCell> cell;
 	 if (page_type_ == PageType::kIndexInternal)
-		 cell = std::make_shared<IndexInternalCell>(medium_cell);       ////////////////////////////// Problem
+	 {
+		 KdbKey primary_key = dynamic_cast<IndexCell&>(medium_cell).getPrimaryKey();
+		 /*
+		 if (child_node.page_type_ == PageType::kIndexInternal) {
+			 primary_key = dynamic_cast<IndexInternalCell&>(medium_cell).getPrimaryKey();
+		 }
+		 else if(child_node.page_type_ == PageType::kIndexLeaf) {
+			 primary_key = dynamic_cast<IndexLeafCell&>(medium_cell).getPrimaryKey();
+		 }
+		 */
+		 cell = std::make_shared<IndexInternalCell>(medium_cell.getKey(), primary_key, new_page_number);
+	 }
 	 else
-		 cell = std::make_shared<TableInternalCell>(medium_cell->getKey(), new_page_number);
-
+		 cell = std::make_shared<TableInternalCell>(medium_cell.getKey(), new_page_number);
 	 InsertToNode(*cell);
-
-	
-
-	 child_node = left_node;		//update child_node
-
-	 MemPage mem_page(new_page_number);
-	 right_node.Write(mem_page);
-	 pager.WritePage(mem_page);
+	 Write(pager);
  }
 
- void BTreeNode::Read(const MemPage& page) {
+ void BTreeNode::Read(Pager& pager) {
 
-	 std::vector<uint8_t> raw_data = page.getRawData();
+	 MemPage mem_page(page_number_);
+	 pager.ReadPage(mem_page);
+
+	 std::vector<uint8_t> raw_data = mem_page.getRawData();
 
 	 page_type_ = (PageType)raw_data[0];
 	 free_offset_ = raw_data[1] << 8 + raw_data[2];
@@ -252,12 +266,16 @@ BTreeNode::~BTreeNode(){
 	 if (page_type_ == PageType::kIndexInternal || page_type_ == PageType::kTableInternal)
 		 right_page_ = raw_data[8] << 8 + raw_data[9] + raw_data[10] << 8 + raw_data[11];
 	 else
-		 right_page_ = 0;
+		 right_page_ = kDefaultRightPage;
+
+
+
+
  }
 
-void BTreeNode::Write(MemPage& page) {
+void BTreeNode::Write(Pager& pager) {
 
-	std::vector<uint8_t> raw_data = page.getRawData();
+	std::vector<uint8_t> raw_data(kDefaultPageSize);
 	
 	page_type_ = (PageType)raw_data[0];
 	free_offset_ = raw_data[1] << 8 + raw_data[2];
@@ -268,9 +286,41 @@ void BTreeNode::Write(MemPage& page) {
 	if (page_type_ == PageType::kIndexInternal || page_type_ == PageType::kTableInternal)
 		right_page_ = raw_data[8] << 8 + raw_data[9] + raw_data[10] << 8 + raw_data[11];
 	else
-		right_page_ = 0;
+		right_page_ = kDefaultRightPage;
 
 
-	page.setRawData(raw_data);
+	// Write offset array
+	std::vector<uint16_t> cells_offset_cell_order(cell_offset_array_.size(),0);
+	uint16_t cell_offset = kDefaultPageSize;
+	for (auto cell : cells_) {
+		cell_offset -= cell->getSize();
+		cells_offset_cell_order.push_back(cell_offset);
+	}
+
+	std::vector<uint16_t> cells_offset(cell_offset_array_.size(), 0);
+	for (uint16_t offset : cell_offset_array_) {
+		cells_offset.push_back(cells_offset_cell_order[offset]);
 	
+	}
+
+	uint16_t index = 12;
+	for (uint16_t offset : cells_offset) {
+		raw_data[index] = offset;
+		raw_data[index + 1] = offset >> 8;
+		index += kCellOffsetSize;
+	}
+
+
+	// Write Cells
+	for (auto cell : cells_) {
+		std::vector<uint8_t>& cell_raw_data = cell.ConvertToRowData();
+		
+
+	}
+
+
+
+	MemPage mem_page(page_number_);
+	mem_page.setRawData(raw_data);
+	pager.WritePage(mem_page);
 }

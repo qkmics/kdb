@@ -21,22 +21,19 @@ PageNumber Pager::GetRealDBSize() const {
 
 }
 
-void Pager::ReadPage(std::shared_ptr<MemPage>& mem_page, PageNumber page_number) {
-	if (page_number > number_of_pages_)
-		std::cout << "error page number not valid" << std::endl;
+void Pager::ReadPage(MemPage& mem_page) {
+	PageNumber page_number = mem_page.getPageNumber();
 
 	kdb_file_.seekg(page_number * kPageSize);
 	std::string data;
 	data.resize(kPageSize);
 	kdb_file_.read(&data[0], kPageSize);
 
-	mem_page = std::make_shared<MemPage>(page_number, data);
+	mem_page.setRawData(data);
 }
 
 void Pager::WritePage(const MemPage& mem_page) {
 	PageNumber page_number = mem_page.getPageNumber();
-	if ( page_number> number_of_pages_)
-		std::cout << "error page number not valid" << std::endl;
 
 	kdb_file_.seekg((page_number - 1) * kPageSize);
 	const std::vector<uint8_t>& raw_data = mem_page.getRawData();
@@ -48,18 +45,18 @@ void Pager::WritePage(const MemPage& mem_page) {
 	kdb_file_.write(&data[0], kPageSize);
 }
 
-MemPage::MemPage(PageNumber page_number, const std::string& data) : page_number_(page_number) {
-	raw_data_.reserve(data.size());
-	for (int i = 0;i < data.size();i++) {
-		raw_data_[i] = data[i];
-	}
-}
-
 MemPage::~MemPage() {
 
 }
 
-void MemPage::setRawData(const std::vector<uint8_t>& raw_data) {
-	for (int i = 0;i < raw_data.size();i++)
+void MemPage::setRawData(const std::string& raw_data) {
+	raw_data_.reserve(raw_data.size());
+	for (int i = 0;i < raw_data.size();i++) {
 		raw_data_[i] = raw_data[i];
+	}
+
+}
+
+void MemPage::setRawData(const std::vector<uint8_t>& raw_data) {
+	raw_data_ = raw_data;
 }

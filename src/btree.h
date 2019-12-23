@@ -15,6 +15,9 @@ enum class PageType {
 };
 
 const int kDefaultPageSize = 1024;
+const PageNumber kDefaultRightPage = 0;
+const uint16_t kCellOffsetSize = 2;
+
 
 class BTreeCell;
 class BTree {
@@ -39,15 +42,15 @@ private:
 class BTreeNode {
 public:
 
-	//BTreeNode(PageNumber page_number): page_number_(page_number), page_type_()
+	BTreeNode(PageNumber page_number) : page_number_(page_number), right_page_(){}
 
 	BTreeNode(PageNumber page_number, PageType page_type, const std::vector<uint16_t>& cell_offset_array, const std::vector<std::shared_ptr<BTreeCell>>& cells);
 	
 	~BTreeNode();
 
-	void Read(const MemPage& page);
+	void Read(Pager& pager);
 
-	void Write(MemPage& page);
+	void Write(Pager& pager);
 
 	bool Find(PageNumber& child_page, std::shared_ptr<BTreeCell>);
 
@@ -61,7 +64,7 @@ private:
 
 	void InsertToNonFullSubtree(const BTreeCell& cell, Pager& pager);
 
-	void Split(BTreeNode&& child_node, Pager& pager);
+	void Split(BTreeNode& child_node, Pager& pager);
 
 	PageNumber page_number_;
 
@@ -81,10 +84,11 @@ private:
 	PageNumber right_page_;        /* Right page (internal nodes only) */
 };
 
+
+
 class BTreeCell {
 public:
 	BTreeCell(KdbKey key) : key_(key) {}
-
 
 	virtual uint16_t getSize() const= 0;
 
@@ -92,6 +96,15 @@ public:
 
 private:
 	KdbKey key_;
+};
+
+class IndexCell : public BTreeCell {
+public:
+	IndexCell(KdbKey key, KdbKey primary_key) : BTreeCell(key), primary_key_(primary_key){}
+	KdbKey getPrimaryKey() { return primary_key_; }
+private:
+	KdbKey primary_key_;
+
 };
 
 class InternalCell : public BTreeCell{
@@ -104,16 +117,24 @@ private:
 	PageNumber child_page_;
 };
 
-class IndexInternalCell : public InternalCell {
+class IndexInternalCell : public InternalCell , public IndexCell{
 public:
-	IndexInternalCell(KdbKey key, KdbKey primary_key, PageNumber child_page) : InternalCell(key, child_page), primary_key_(primary_key){}
+	IndexInternalCell(KdbKey key, KdbKey primary_key, PageNumber child_page) : InternalCell(key, child_page), IndexCell(key, primary_key) {}
 
 	uint16_t getSize() const { return 8; }
 
 private:
-	KdbKey primary_key_;
+
 };
 
+class IndexLeafCell : public IndexCell {
+public:
+	IndexLeafCell(KdbKey key, KdbKey primary_key) : IndexCell(key, primary_key) {}
+
+	uint16_t getSize() const { return 8; }
+
+private:
+};
 
 class TableInternalCell : public InternalCell {
 public:
@@ -125,7 +146,6 @@ private:
 
 };
 
-
 class TableLeafCell : public BTreeCell {
 public:
 	TableLeafCell(KdbKey key, std::vector<uint8_t> data) : BTreeCell(key), data_(data) {}
@@ -134,17 +154,6 @@ public:
 
 private:
 	std::vector<uint8_t> data_;
-};
-
-
-class IndexLeafCell : public BTreeCell {
-public:
-	IndexLeafCell(KdbKey key, KdbKey primary_key) : BTreeCell(key), primary_key_(primary_key) {}
-
-	uint16_t getSize() const { return 8; }
-
-private:
-	KdbKey primary_key_;
 };
 
 

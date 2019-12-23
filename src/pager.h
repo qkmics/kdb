@@ -14,12 +14,13 @@ class MemPage {
 public:
 	MemPage(PageNumber page_number) : page_number_(page_number) {}
 
-	MemPage(PageNumber page_number, const std::string& data);
 	~MemPage();
 
 	PageNumber getPageNumber() const{ return page_number_; }
 
 	const std::vector<uint8_t>& getRawData() const{ return raw_data_; }
+
+	void setRawData(const std::string& raw_data);
 
 	void setRawData(const std::vector<uint8_t>& raw_data);
 
@@ -38,7 +39,7 @@ public:
 
 	PageNumber GetRealDBSize() const;
 
-	void ReadPage(std::shared_ptr<MemPage>& mem_page, PageNumber page_number) ;
+	void ReadPage(MemPage& mem_page);
 
 	void WritePage(const MemPage& mem_page);
 
