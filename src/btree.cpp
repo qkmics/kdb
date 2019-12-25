@@ -1,5 +1,7 @@
 #include "btree.h"
 
+#include <algorithm>
+
 BTree::BTree(const std::string& file_name) :pager_(file_name, kDefaultPageSize) {
 	
 	// create header
@@ -24,11 +26,11 @@ BTree::~BTree() {
 
 void BTree::AllocateNode(PageNumber& page_number, PageType page_type) {
 	pager_.AllocatePage(page_number);
-
-
 }
 
-
+/*
+* Finds the data associated for a given key in a table B-Tree
+*/
 void BTree::Find(PageNumber root_page_number, KdbKey key) {	
 	
 	MemPage mem_page(root_page_number);
@@ -39,7 +41,7 @@ void BTree::Find(PageNumber root_page_number, KdbKey key) {
 
 	PageNumber child_page_number;
 	std::shared_ptr<BTreeCell> cell;
-	root.Find(child_page_number,cell);
+	//root.Find(child_page_number, key);
 	if (child_page_number == root_page_number) {
 		// Found the target cell
 
@@ -268,19 +270,39 @@ BTreeNode::~BTreeNode(){
 	 else
 		 right_page_ = kDefaultRightPage;
 
+	 uint16_t index = 12;
+	 uint16_t offset;
+	 std::vector<uint16_t> offset_array;
+	 while(index<free_offset_) {
+		 offset = raw_data[index] + raw_data[index + 1];
+		 index += 2;
 
+		 offset_array.push_back(offset);
+	 }
 
+	 std::sort(offset_array.begin(), offset_array.end());
+	 offset_array.push_back(kDefaultPageSize - 1);
 
+	 for (int i = 1; i < offset_array.size();i++) {
+		 std::shared_ptr<BTreeCell> cell = MakeCell(page_type_ ,raw_data, offset_array[i - 1], offset_array[i]);
+		 
+		 cells_.push_back(cell);
+		 cell_offset_array_.push_back(i - 1);
+	 }
  }
+
 
 void BTreeNode::Write(Pager& pager) {
 
 	std::vector<uint8_t> raw_data(kDefaultPageSize);
 	
-	page_type_ = (PageType)raw_data[0];
-	free_offset_ = raw_data[1] << 8 + raw_data[2];
-	number_of_cells_ = raw_data[3] << 8 + raw_data[4];
-	cells_offset_ = raw_data[5] << 8 + raw_data[6];
+	raw_data[0] = (uint8_t)page_type_;
+	raw_data[1] = free_offset_;
+	raw_data[2] = free_offset_ >> 8;
+	raw_data[3] = number_of_cells_;
+	raw_data[4] = number_of_cells_ >> 8;
+	raw_data[5] = cells_offset_;
+	raw_data[6] = cells_offset_ >> 8;
 
 	// Only internal node has right page 
 	if (page_type_ == PageType::kIndexInternal || page_type_ == PageType::kTableInternal)
@@ -305,22 +327,53 @@ void BTreeNode::Write(Pager& pager) {
 
 	uint16_t index = 12;
 	for (uint16_t offset : cells_offset) {
-		raw_data[index] = offset;
-		raw_data[index + 1] = offset >> 8;
-		index += kCellOffsetSize;
+		raw_data[index++] = offset;
+		raw_data[index++] = offset >> 8;
 	}
-
 
 	// Write Cells
+	index = kDefaultPageSize - 1;
 	for (auto cell : cells_) {
-		std::vector<uint8_t>& cell_raw_data = cell.ConvertToRowData();
+		std::shared_ptr<std::vector<uint8_t>> cell_raw_data = cell->ConvertToRawData();
 		
-
+		for (int i = cell_raw_data->size() - 1;i >= 0;i--) {
+			raw_data[index--] = (*cell_raw_data)[i];
+		}
 	}
-
-
 
 	MemPage mem_page(page_number_);
 	mem_page.setRawData(raw_data);
 	pager.WritePage(mem_page);
+}
+
+
+std::shared_ptr<BTreeCell> BTreeNode::MakeCell(PageType page_type, const std::vector<uint8_t>& data, uint16_t start, uint16_t end) {
+	KdbKey key;
+	if (page_type == PageType::kTableInternal) {
+		PageNumber child_page = data[start] | (data[start + 1] << 8) | (data[start + 2] << 16) | (data[start + 3] << 24);
+		key = data[start + 4] | (data[start + 5] << 8) | (data[start + 6] << 16) | (data[start + 7] << 24);
+
+		return std::make_shared<TableInternalCell>(key,child_page);
+	}
+	else if (page_type == PageType::kTableLeaf) {
+		uint32_t record_size = data[start] | (data[start + 1] << 8) | (data[start + 2] << 16) | (data[start + 3] << 24);;
+		key = data[start + 4] | (data[start + 5] << 8) | (data[start + 6] << 16) | (data[start + 7] << 24);
+		
+		std::vector<uint8_t> record_data(record_size);
+		for (uint32_t i = 0; i < record_size;i++)
+			record_data[i] = data[start + 8 + i];
+
+		return std::make_shared<TableLeafCell>(key, data);
+	}
+	else if (page_type == PageType::kIndexInternal) {	
+		PageNumber child_page = data[start] | (data[start + 1] << 8) | (data[start + 2] << 16) | (data[start + 3] << 24);
+		key = data[start + 8] | (data[start + 9] << 8) | (data[start + 10] << 16) | (data[start + 11] << 24);
+		KdbKey primary_key = data[start + 12] | (data[start + 13] << 8) | (data[start + 14] << 16) | (data[start + 15] << 24);
+		return std::make_shared<IndexInternalCell>(key, primary_key, child_page);
+	}
+	else if (page_type == PageType::kIndexLeaf) {
+		key = data[start + 4] | (data[start + 5] << 8) | (data[start + 6] << 16) | (data[start + 7] << 24);
+		KdbKey primary_key = data[start + 8] | (data[start + 9] << 8) | (data[start + 10] << 16) | (data[start + 11] << 24);
+		return std::make_shared<IndexLeafCell>(key, primary_key);
+	}
 }

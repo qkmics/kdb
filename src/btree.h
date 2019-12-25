@@ -52,7 +52,7 @@ public:
 
 	void Write(Pager& pager);
 
-	bool Find(PageNumber& child_page, std::shared_ptr<BTreeCell>);
+	bool Find(std::shared_ptr<BTreeCell>, BTreeCell& cell);
 
 	void InsertCellToSubtree(const BTreeCell& cell,Pager& pager);
 
@@ -65,6 +65,8 @@ private:
 	void InsertToNonFullSubtree(const BTreeCell& cell, Pager& pager);
 
 	void Split(BTreeNode& child_node, Pager& pager);
+
+	std::shared_ptr<BTreeCell> MakeCell(PageType page_type, const std::vector<uint8_t>& data, uint16_t start, uint16_t end);
 
 	PageNumber page_number_;
 
@@ -90,7 +92,9 @@ class BTreeCell {
 public:
 	BTreeCell(KdbKey key) : key_(key) {}
 
-	virtual uint16_t getSize() const= 0;
+	virtual std::shared_ptr<std::vector<uint8_t>> ConvertToRawData() const = 0;
+	
+	virtual uint16_t getSize() const = 0;
 
 	KdbKey getKey() const{ return key_; }
 
@@ -98,16 +102,16 @@ private:
 	KdbKey key_;
 };
 
-class IndexCell : public BTreeCell {
+class IndexCell : virtual public BTreeCell {
 public:
-	IndexCell(KdbKey key, KdbKey primary_key) : BTreeCell(key), primary_key_(primary_key){}
+	IndexCell(KdbKey key, KdbKey primary_key) : BTreeCell(key), primary_key_(primary_key) {}
 	KdbKey getPrimaryKey() { return primary_key_; }
 private:
 	KdbKey primary_key_;
 
 };
 
-class InternalCell : public BTreeCell{
+class InternalCell : virtual public BTreeCell {
 public:
 	InternalCell(KdbKey key, PageNumber child_page) : BTreeCell(key), child_page_(child_page) {}
 
@@ -117,10 +121,10 @@ private:
 	PageNumber child_page_;
 };
 
-class IndexInternalCell : public InternalCell , public IndexCell{
+class IndexInternalCell : public InternalCell ,public IndexCell{
 public:
-	IndexInternalCell(KdbKey key, KdbKey primary_key, PageNumber child_page) : InternalCell(key, child_page), IndexCell(key, primary_key) {}
-
+	IndexInternalCell(KdbKey key, KdbKey primary_key, PageNumber child_page) : InternalCell(key, child_page), IndexCell(key, primary_key), BTreeCell(key) {}
+	virtual std::shared_ptr<std::vector<uint8_t>> ConvertToRawData() const {}
 	uint16_t getSize() const { return 8; }
 
 private:
@@ -129,8 +133,9 @@ private:
 
 class IndexLeafCell : public IndexCell {
 public:
-	IndexLeafCell(KdbKey key, KdbKey primary_key) : IndexCell(key, primary_key) {}
+	IndexLeafCell(KdbKey key, KdbKey primary_key) : IndexCell(key, primary_key), BTreeCell(key){}
 
+	virtual std::shared_ptr<std::vector<uint8_t>> ConvertToRawData() const {}
 	uint16_t getSize() const { return 8; }
 
 private:
@@ -140,6 +145,7 @@ class TableInternalCell : public InternalCell {
 public:
 	TableInternalCell(KdbKey key, PageNumber child_page) : InternalCell(key, child_page){}
 
+	virtual std::shared_ptr<std::vector<uint8_t>> ConvertToRawData() const  {}
 	uint16_t getSize() const { return 8; }
 
 private:
@@ -149,7 +155,7 @@ private:
 class TableLeafCell : public BTreeCell {
 public:
 	TableLeafCell(KdbKey key, std::vector<uint8_t> data) : BTreeCell(key), data_(data) {}
-
+	virtual std::shared_ptr<std::vector<uint8_t>> ConvertToRawData() const  {}
 	uint16_t getSize() const { return data_.size(); }
 
 private:

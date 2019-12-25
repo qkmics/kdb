@@ -16,7 +16,7 @@ void Pager::AllocatePage(PageNumber& page_number) {
 
 PageNumber Pager::GetRealDBSize() const {
 
-	int file_length = kdb_file_.tellg();
+	int file_length = kdb_file_.tellp();
 	return file_length / kPageSize;
 
 }
