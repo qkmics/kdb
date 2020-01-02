@@ -31,12 +31,15 @@ public:
 	void AllocateNode(PageNumber& page_number, PageType page_type);
 
 	void Find(PageNumber root_number, KdbKey key);
+
 	void InsertInIndex(PageNumber root_number, KdbKey keyIdx, KdbKey keyPk);
 	void InsertInTable(PageNumber root_page_number, KdbKey key, const std::vector<uint8_t>& data);
 
+	uint32_t getRootPage() const { return root_page_; }
 private:
-	//BTreeNode  root_;
 	Pager pager_;
+
+	uint32_t root_page_;
 };
 
 class BTreeNode {
@@ -95,6 +98,8 @@ public:
 	virtual std::shared_ptr<std::vector<uint8_t>> ConvertToRawData() const = 0;
 	
 	virtual uint16_t getSize() const = 0;
+
+
 
 	KdbKey getKey() const{ return key_; }
 

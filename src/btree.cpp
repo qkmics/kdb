@@ -33,15 +33,12 @@ void BTree::AllocateNode(PageNumber& page_number, PageType page_type) {
 */
 void BTree::Find(PageNumber root_page_number, KdbKey key) {	
 	
-	MemPage mem_page(root_page_number);
-	pager_.ReadPage(mem_page);
-
 	BTreeNode root(root_page_number);
 	root.Read(pager_);
 
 	PageNumber child_page_number;
 	std::shared_ptr<BTreeCell> cell;
-	//root.Find(child_page_number, key);
+	root.Find(child_page_number, key);
 	if (child_page_number == root_page_number) {
 		// Found the target cell
 

@@ -1,15 +1,22 @@
 #ifndef RECORD
 #define RECORD
 
+#include "dbm.h"
+
+
 class KdbRecord {
 public:
-	KdbRecord();
+	KdbRecord(const std::vector<std::shared_ptr<Register>>& registers, int register_number_start, int register_number_end);
+	KdbRecord(const std::vector<uint8_t>& raw_data);
 	~KdbRecord();
 
+	const std::vector<uint8_t>& getRawData() const { return raw_data_; }
+	int getInteger(int column) const;
+	const std::string& getString(int column) const;
+
 private:
-
-
-
+	std::vector<uint8_t> raw_data_;
+	std::vector<std::shared_ptr<Register>> registers_;
 };
 
 #endif //  RECORD
