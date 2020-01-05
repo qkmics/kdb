@@ -3,10 +3,13 @@
 
 class kdb {
 public:
+	void LoadSchema() {
 
+	}
 
 
 private:
+
 
 };
 

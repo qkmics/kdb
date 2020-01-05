@@ -12,6 +12,8 @@ enum class CursorType {
 };
 
 class Register;
+class KdbRecord;
+
 class Cursor {
 public:
 	void OpenRead(PageNumber root);
@@ -23,10 +25,11 @@ public:
 	void Insert(int primary_key,int index_key);
 
 	// Get the values from the entry where the cursor point to
-	int StoreKey(std::shared_ptr<Register> reg);
-	int GetIndexKey();
-	int StoreColumn(int column_number, std::shared_ptr<Register> reg);
-	int StoreIdxPKey(std::shared_ptr<Register> reg);
+	int GetKey() const;
+	int GetIndexKey() const;
+	int GetIdxPKey() const;
+
+	std::shared_ptr<Register> GetColumn(int column_number) const;
 
 	bool ReWind();
 	bool Next();
@@ -42,6 +45,8 @@ private:
 	std::shared_ptr<BTreeCell> cell_;
 	CursorType type_;
 	std::shared_ptr<BTree> btree_;
+
+	std::shared_ptr<KdbRecord> record_;
 };
 
 

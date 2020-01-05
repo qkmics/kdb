@@ -249,6 +249,7 @@ BTreeNode::~BTreeNode(){
 	 Write(pager);
  }
 
+ // Read a page from the file, initialize the btree node 
  void BTreeNode::Read(Pager& pager) {
 
 	 MemPage mem_page(page_number_);

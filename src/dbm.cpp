@@ -378,14 +378,15 @@ void DbMachine::Column() {
 	int cursor_number = instruction_.getP1();
 	int column_number = instruction_.getP2();
 	int register_number = instruction_.getP3();
-	cursors_[cursor_number].StoreColumn(column_number, registers_[register_number]);
+	
+	registers_[register_number] = cursors_[cursor_number].GetColumn(column_number);
 }
 
 // Store in register r the value of the key of the entry pointed at by cursor c.
 void DbMachine::Key() {
 	int cursor_number = instruction_.getP1();
 	int register_number = instruction_.getP2();
-	cursors_[cursor_number].StoreKey(registers_[register_number]);
+	registers_[register_number]->setData(cursors_[cursor_number].GetKey());
 }
 
 // Create a database record using the values from registers r1 through r1+n−1, and store the record in r2.
@@ -467,7 +468,8 @@ void DbMachine::IdxLe() {
 void DbMachine::IdxPKey() {
 	int cursor_number = instruction_.getP1();
 	int register_number = instruction_.getP2();
-	cursors_[cursor_number].StoreIdxPKey(registers_[register_number]);
+
+	registers_[register_number]->setData(cursors_[cursor_number].GetIdxPKey());
 }
 
 void DbMachine::IdxInsert() {

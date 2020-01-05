@@ -45,15 +45,15 @@ bool Cursor::SeekLe(int key) {
 
 }
 
-int Cursor::GetIndexKey() {
-	
+int Cursor::GetKey() const {
+	return cell_->getKey();
 }
-int Cursor::StoreColumn(int column_number, std::shared_ptr<Register> reg) {
-	
+int Cursor::GetIndexKey() const {
+	return cell_->getKey();
 }
-int Cursor::StoreKey(std::shared_ptr<Register> reg) {
-	reg->setData(cell_->getKey());
+int Cursor::GetIdxPKey() const {
+	return std::static_pointer_cast<IndexCell>(cell_)->getPrimaryKey();
 }
-int Cursor::StoreIdxPKey(std::shared_ptr<Register> reg) {
-
+std::shared_ptr<Register> Cursor::GetColumn(int column_number) const {
+	return record_->getColumn(column_number);
 }

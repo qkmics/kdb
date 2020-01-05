@@ -1,7 +1,55 @@
 #ifndef KDB
 #define KDB
 
-#include <chisql/chisql.h>
+//#include "../ksql/ksql.h"
+
+#include <string>
+#include <memory>
+#include <fstream>
+
+class DbMachine;
+
+enum class KdbReturnCode {
+	
+};
+
+
+
+
+class Kdb {
+public:
+	Kdb();
+
+	KdbReturnCode Open(const std::string& file_name);
+
+	KdbReturnCode Prepare(const std::string& sql, std::shared_ptr<DbMachine> dbm);
+
+	KdbReturnCode Step(DbMachine& dbm);
+
+	int ColumnCount(DbMachine& dbm);
+
+	int ColumnType(DbMachine& dbm, int col);
+
+	std::string& ColumnName(DbMachine& dbm, int col);
+
+	int ColumnInt(DbMachine& dbm, int col);
+
+	std::string& ColumnText(DbMachine& dbm, int col);
+
+private:
+
+	void LoadSchema();
+
+
+	std::fstream file_;
+ 
+};
+
+
+enum class ColumnType {
+	kNull, kByte, kSmallInt, kInteger, kText
+};
+
 
 /* Forward declarations.
  * From the API's perspective's, these are opaque data types. */
