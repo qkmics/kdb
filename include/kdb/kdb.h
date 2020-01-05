@@ -13,8 +13,7 @@ enum class KdbReturnCode {
 	
 };
 
-
-
+class BTree;
 
 class Kdb {
 public:
@@ -38,11 +37,9 @@ public:
 
 private:
 
-	void LoadSchema();
-
-
+	std::unique_ptr<BTree> btree_;
 	std::fstream file_;
- 
+
 };
 
 
