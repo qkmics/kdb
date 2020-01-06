@@ -2,6 +2,28 @@
 
 #include <algorithm>
 
+/* Open a B-Tree file
+ *
+ * This function opens a database file and verifies that the file
+ * header is correct. If the file is empty (which will happen
+ * if the pager is given a filename for a file that does not exist)
+ * then this function will (1) initialize the file header using
+ * the default page size and (2) create an empty table leaf node
+ * in page 1.
+ *
+ * Parameters
+ * - filename: Database file (might not exist)
+ * - db: A chidb struct. Its bt field must be set to the newly
+ *       created BTree.
+ * - bt: An out parameter. Used to return a pointer to the
+ *       newly created BTree.
+ *
+ * Return
+ * - CHIDB_OK: Operation successful
+ * - CHIDB_ECORRUPTHEADER: Database file contains an invalid header
+ * - CHIDB_ENOMEM: Could not allocate memory
+ * - CHIDB_EIO: An I/O error has occurred when accessing the file
+ */
 BTree::BTree(const std::string& file_name) :pager_(file_name, kDefaultPageSize) {
 	
 	// create header

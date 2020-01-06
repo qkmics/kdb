@@ -2,8 +2,9 @@
 #include "codegen.h"
 
 
-std::shared_ptr<DbMachine> CodeGenerator::GenerateDbm(const KSqlStatement& sql_statment) {
 
+std::shared_ptr<DbMachine> CodeGenerator::GenerateDbm(const KSqlStatement& sql_statment) {
+	sql_statment
 
 
 

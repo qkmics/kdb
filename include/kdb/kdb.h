@@ -10,7 +10,7 @@
 class DbMachine;
 
 enum class KdbReturnCode {
-	
+	kInvalidSql
 };
 
 class BTree;
@@ -21,7 +21,7 @@ public:
 
 	KdbReturnCode Open(const std::string& file_name);
 
-	KdbReturnCode Prepare(const std::string& sql, std::shared_ptr<DbMachine> dbm);
+	KdbReturnCode Prepare(const std::string& sql, std::shared_ptr<DbMachine>& dbm);
 
 	KdbReturnCode Step(DbMachine& dbm);
 
@@ -38,7 +38,6 @@ public:
 private:
 
 	std::unique_ptr<BTree> btree_;
-	std::fstream file_;
 
 };
 

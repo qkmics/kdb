@@ -1,14 +1,20 @@
 
-#include "../include/kdb/kdb.h"
+#include "../../include/kdb/kdb.h"
+#include "btree.h"
 
+
+/*
+* This function create the btree in Kdb object
+*/
 KdbReturnCode Kdb::Open(const std::string& file_name) {
-	file_.open(file_name);
+
+	btree_ = std::make_unique<BTree>(new BTree(file_name));
 
 
 }
 
-KdbReturnCode Kdb::Prepare(const std::string& sql, std::shared_ptr<DbMachine> dbm) {
-
+KdbReturnCode Kdb::Prepare(const std::string& sql, std::shared_ptr<DbMachine>& dbm) {
+	dbm = std::make_shared<DbMachine>();
 }
 
 KdbReturnCode Kdb::Step(DbMachine& dbm) {
@@ -35,10 +41,7 @@ std::string& Kdb::ColumnText(DbMachine& dbm, int col) {
 
 }
 
-void Kdb::LoadSchema() {
 
-
-}
 
 /*
  *  chidb - a didactic relational database management system

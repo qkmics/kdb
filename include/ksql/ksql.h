@@ -1,6 +1,9 @@
 #ifndef KSQL
 #define KSQL
 
+enum class SqlType{
+	kCreate,kInsert,kSelect
+};
 
 
 class KSqlStatement {
