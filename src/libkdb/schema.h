@@ -11,7 +11,7 @@ struct SchemaItem {
 	std::string indexed_table_name_;		// Associated table name
 	int root_page_;							// Database page where the root node of the B-Tree is stored
 	std::string sql_statement_;				// The SQL statement used to create the table or index.
-	KSqlStatement parsed_statement_;				// The parsed SQL statement
+	CreateStmt parsed_statement_;				// The parsed SQL statement
 };	
 
 

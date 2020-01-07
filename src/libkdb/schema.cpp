@@ -62,7 +62,7 @@ void Schema::LoadOneCell(const BTreeCell& cell) {
 	item.indexed_table_name_ = record.getString(2);
 	item.root_page_ = record.getInteger(3);
 	item.sql_statement_ = record.getString(4);
-	item.parsed_statement_ = SqlParser::Parse(item.sql_statement_);
+	item.parsed_statement_ = std::dynamic_cast<CreateStmt>(SqlParser::Parse(item.sql_statement_));
 
 	schema_table_[item_name] = item;
 }
