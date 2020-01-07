@@ -12,6 +12,12 @@ KdbRecord::KdbRecord(const std::vector<std::shared_ptr<Register>>& registers, in
 KdbRecord::KdbRecord(const std::vector<uint8_t>& raw_data) {
 
 }
+
+int KdbRecord::getType(int column) const {
+	RegisterType type = registers_[column]->getType();
+	if(type == )
+}
+
 int KdbRecord::getInteger(int column) const {
 	return registers_[column]->getInteger();
 }

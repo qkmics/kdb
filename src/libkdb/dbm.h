@@ -40,6 +40,8 @@ class Register  {
 
 	int Compare(const Register&) const { return 0; }
 
+	RegisterType getType() const { return type_; }
+
 	int getInteger() const;
 
 	const std::string& getString() const;

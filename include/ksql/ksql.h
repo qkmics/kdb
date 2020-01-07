@@ -1,8 +1,8 @@
 #ifndef KSQL
 #define KSQL
 
-enum class SqlType{
-	kCreate,kInsert,kSelect
+enum class SqlStatementType {
+	kCreate, kInsert, kSelect
 };
 
 

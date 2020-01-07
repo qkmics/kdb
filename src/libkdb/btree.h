@@ -25,9 +25,6 @@ public:
 	BTree(const std::string& file_name);
 	~BTree();
 
-	//void InsertCell(CellNumber cell_number, BTreeCell& cell);
-	//void GetCell(CellNumber cell_number, BTreeCell& cell);
-
 	void AllocateNode(PageNumber& page_number, PageType page_type);
 
 	void Find(PageNumber root_number, KdbKey key);
@@ -59,6 +56,15 @@ public:
 
 	void InsertCellToSubtree(const BTreeCell& cell,Pager& pager);
 
+	bool ExistRightPage() {}
+
+	PageNumber getRightPage() {}
+
+	//void InsertCell(CellNumber cell_number, BTreeCell& cell);
+	std::vector<std::shared_ptr<BTreeCell>> GetCells() const { return cells_; }
+
+	PageType getType() { return page_type_; }
+
 private:
 
 	void InsertToNode(const BTreeCell& cell);
@@ -78,7 +84,6 @@ private:
 	std::vector<uint16_t> cell_offset_array_; /* Pointer to start of cell offset array in the in-memory page */
 
 	std::vector<std::shared_ptr<BTreeCell>> cells_;
-
 
 	uint16_t free_offset_;      /* Byte offset of free space in page */
 
