@@ -109,16 +109,17 @@ private:
 
 class DbMachine {
 public:
+	DbMachine(const std::vector<Instruction>& instructions) { instructions_ = instructions; };
 
-	void Run();
+	void Exec();
 
 private:
-	std::unique_ptr<BTree> btree;
+//	std::unique_ptr<BTree> btree;
 
 	uint32_t pc_;
 	std::vector<Instruction> instructions_;
-	Instruction& instruction_;
-	
+	std::shared_ptr<Instruction> instruction_;
+
 	std::vector<std::shared_ptr<Register>> registers_;
 
 	std::vector<Cursor> cursors_;

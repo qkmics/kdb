@@ -7,13 +7,12 @@
 class CodeGenerator {
 public:
 
-	std::shared_ptr<DbMachine> GenerateDbm(const KSqlStatement& sql_statment);
+	std::shared_ptr<DbMachine> GenerateStatement(const KSqlStatement& sql_statment);
 
 private:
-
-	std::shared_ptr<DbMachine> GenerateCreateTable();
-	std::shared_ptr<DbMachine> GenerateInsert();
-	std::shared_ptr<DbMachine> GenerateSelect();
+	std::shared_ptr<DbMachine> GenerateCreateStmt(const CreateStmt& sql_statment);
+	std::shared_ptr<DbMachine> GenerateInsertStmt(const InsertStmt& sql_statment);
+	std::shared_ptr<DbMachine> GenerateSelectStmt(const SelectStmt& sql_statment);
 
 
 };

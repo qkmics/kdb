@@ -26,6 +26,11 @@ class InsertStmt : KSqlStatement {
 
 };
 
+class SelectStmt : KSqlStatement {
+
+
+};
+
 
 
 #endif //  KSQL

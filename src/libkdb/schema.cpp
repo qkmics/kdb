@@ -55,14 +55,13 @@ bool Schema::GetColumnType(const std::string& table_name, const std::string& col
 void Schema::LoadOneCell(const BTreeCell& cell) {
 	const TableLeafCell& schema_item_cell = static_cast<const TableLeafCell&>(cell);
 	KdbRecord record(*schema_item_cell.ConvertToRawData());
-	
 	SchemaItem item;
 	item.type_ = record.getString(0);
 	std::string item_name = record.getString(1);
 	item.indexed_table_name_ = record.getString(2);
 	item.root_page_ = record.getInteger(3);
 	item.sql_statement_ = record.getString(4);
-	item.parsed_statement_ = std::dynamic_cast<CreateStmt>(SqlParser::Parse(item.sql_statement_));
-
+	std::shared_ptr<CreateStmt> creat_stmt=(std::static_pointer_cast<CreateStmt>(SqlParser::Parse(item.sql_statement_)));
+	item.parsed_statement_ = *creat_stmt;
 	schema_table_[item_name] = item;
 }

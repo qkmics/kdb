@@ -1,5 +1,5 @@
 #include "dbm-cursor.h"
-
+#include "record.h"
 #include "dbm.h"
 
 void Cursor::OpenRead(PageNumber root) {

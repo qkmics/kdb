@@ -2,10 +2,13 @@
 #define SQL_PARSER
 
 #include <string>
+#include <memory>
+
 #include "ksql.h"
+
 class SqlParser {
 public:
-	static KSqlStatement Parse(const std::string& sql_string);
+	static std::shared_ptr<KSqlStatement> Parse(const std::string& sql_string);
 
 
 
